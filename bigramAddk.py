@@ -1,21 +1,22 @@
 import math
-import collections
+from collections import Counter
+from typing import List
+import os
 
 
 f = open("data/Trump.txt", "r")
 trainFile = f.readlines()
-os.remove("outputBigram.txt")
 f = open("outputBigram.txt", "w", newline='\n')
 
-def setUNK(count, unkcutoff):
+def setUNK(count: Counter, unkcutoff: int) -> None:
     count["::UNK::"] = 0
     for x in count.copy():
         if count[x] <= unkcutoff:
             count["::UNK::"] += count[x]
             del count[x]
 
-def UnigramCounterFunction(file, unkcutoff):
-    UnigramCount = collections.Counter()
+def UnigramCounterFunction(file: List[str], unkcutoff: int) -> Counter:
+    UnigramCount = Counter()
     for x in file:
         x = x.split()
         # Inserting ::STOP:: for end of sentence
@@ -26,8 +27,8 @@ def UnigramCounterFunction(file, unkcutoff):
     setUNK(UnigramCount, unkcutoff)
     return UnigramCount
 
-def BigramCounterFunction(file, Unigram, unkcutoff):
-    BigramCount = collections.Counter()
+def BigramCounterFunction(file: List[str], Unigram: Counter, unkcutoff: int) -> Counter:
+    BigramCount = Counter()
     numWords = 0
     for x in file:
         x = x.split()
@@ -44,7 +45,7 @@ def BigramCounterFunction(file, Unigram, unkcutoff):
             BigramCount[word] += 1
     return BigramCount
 
-def perplexity(Unigram, Bigram, file, k):
+def perplexity(Unigram: Counter, Bigram: Counter, file: List[str], k: float) -> float:
     score = 0
     M = 0
     sizeOfVocab = len(Unigram)
