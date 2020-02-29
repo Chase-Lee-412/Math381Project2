@@ -1,7 +1,8 @@
 import math
 from collections import Counter
-from typing import List
+from typing import List, Tuple, Dict
 import os
+import numpy as np
 
 
 f = open("data/Trump.txt", "r")
@@ -29,7 +30,6 @@ def UnigramCounterFunction(file: List[str], unkcutoff: int) -> Counter:
 
 def BigramCounterFunction(file: List[str], Unigram: Counter, unkcutoff: int) -> Counter:
     BigramCount = Counter()
-    numWords = 0
     for x in file:
         x = x.split()
         # Inserting ::START:: for convenience
@@ -67,6 +67,27 @@ def perplexity(Unigram: Counter, Bigram: Counter, file: List[str], k: float) -> 
     score = score/M
     return math.pow(2,-score)
 
+def generateTransitionMatrix(Bigram: Counter) -> Tuple[np.ndarray, List[str]]:
+    words = set()
+    for (w1, w2) in Bigram:
+        words.add(w1)
+        words.add(w2)
+    words = list(words)
+    words.sort()
+    word2ind = lambda word:words.index(word)
+    transition_matrix = np.zeros((len(words),len(words)))
+    for ((w1, w2),val) in Bigram.items():
+        transition_matrix[word2ind(w1), word2ind(w2)] = val
+    row_sums = np.sum(transition_matrix, axis=1)
+    rows_with_zero = np.nonzero(row_sums == 0)
+    for [ind] in rows_with_zero:
+        transition_matrix[ind, ind] = 1
+        row_sums[ind] = 1
+    transition_matrix / row_sums[:, None]
+    ind2word = {ind + 1: word for [ind, word] in enumerate(words)}
+    return (transition_matrix, words)
+
+
 def main():
     cutoff = 1
     kSet = [0.000000001, 0.00000001, 0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10]
@@ -77,4 +98,11 @@ def main():
         print("k value: ", k)
         print("perplexity is : ", perplexity(Unigram, Bigram, trainFile, k))
 
-main()
+def exportTransitionMatrix():
+    cutoff = 1
+    kSet = [0.000000001, 0.00000001, 0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10]
+    Unigram = UnigramCounterFunction(trainFile, cutoff)
+    Bigram = BigramCounterFunction(trainFile, Unigram, cutoff)
+    return generateTransitionMatrix(Bigram)
+
+exportTransitionMatrix()
