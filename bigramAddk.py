@@ -1,13 +1,12 @@
 import math
 from collections import Counter
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Callable
 import os
 import numpy as np
 
 
 f = open("data/Trump.txt", "r")
 trainFile = f.readlines()
-f = open("outputBigram.txt", "w", newline='\n')
 
 def setUNK(count: Counter, unkcutoff: int) -> None:
     count["::UNK::"] = 0
@@ -74,18 +73,50 @@ def generateTransitionMatrix(Bigram: Counter) -> Tuple[np.ndarray, List[str]]:
         words.add(w2)
     words = list(words)
     words.sort()
-    word2ind = lambda word:words.index(word)
     transition_matrix = np.zeros((len(words),len(words)))
     for ((w1, w2),val) in Bigram.items():
-        transition_matrix[word2ind(w1), word2ind(w2)] = val
+        transition_matrix[words.index(w1), words.index(w2)] = val
     row_sums = np.sum(transition_matrix, axis=1)
     rows_with_zero = np.nonzero(row_sums == 0)
     for [ind] in rows_with_zero:
         transition_matrix[ind, ind] = 1
         row_sums[ind] = 1
     transition_matrix / row_sums[:, None]
-    ind2word = {ind + 1: word for [ind, word] in enumerate(words)}
     return (transition_matrix, words)
+
+
+def train(trainFile: List[str], cutoff: int, k) -> Callable[[List[str]], float]:
+    Unigram = UnigramCounterFunction(trainFile, cutoff)
+    Bigram = BigramCounterFunction(trainFile, Unigram, cutoff)
+    return lambda test: perplexity(Unigram, Bigram, test, k)
+
+def classifiy():
+    train_set = range(1,46)
+    test_set = range(46,51)
+    fox_base_dir = "data/FoxNews/foxArticle"
+    cnn_base_dir = "data/CnnNews/CNN-"
+    fox_train = []
+    cnn_train = []
+    for i in train_set:
+        with open(fox_base_dir + f"{i}.txt") as text_file:
+            fox_train.extend(text_file.readlines())
+        with open(cnn_base_dir + f"{i}.txt") as text_file:
+            cnn_train.extend(text_file.readlines())
+    fox_test = []
+    cnn_test = []
+    for i in test_set:
+        with open(fox_base_dir + f"{i}.txt") as text_file:
+            fox_test.append(text_file.readlines())
+        with open(cnn_base_dir + f"{i}.txt") as text_file:
+            cnn_test.append(text_file.readlines())
+    cutoff = 2
+    k = 0.1
+    fox_perplexity = train(fox_train, cutoff, k)
+    cnn_perplexity = train(cnn_train, cutoff, k)
+    for i,text in enumerate(fox_test):
+        print(f"Fox article {i+1} classified as {'fox' if fox_perplexity(text) < cnn_perplexity(text) else 'cnn'}")
+    for i,text in enumerate(cnn_test):
+        print(f"CNN article {i+1} classified as {'fox' if fox_perplexity(text) < cnn_perplexity(text) else 'cnn'}")
 
 
 def main():
@@ -98,6 +129,8 @@ def main():
         print("k value: ", k)
         print("perplexity is : ", perplexity(Unigram, Bigram, trainFile, k))
 
+
+
 def exportTransitionMatrix():
     cutoff = 1
     kSet = [0.000000001, 0.00000001, 0.0000001, 0.000001, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 10]
@@ -105,4 +138,5 @@ def exportTransitionMatrix():
     Bigram = BigramCounterFunction(trainFile, Unigram, cutoff)
     return generateTransitionMatrix(Bigram)
 
+classifiy()
 exportTransitionMatrix()
